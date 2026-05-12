@@ -27,7 +27,7 @@ def process_portfolio_images(folder_path):
     data_list = []
 
     # Get all jpeg files
-    files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.jpeg', '.jpg'))]
+    files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.jpeg', '.jpg', '.png'))]
     # Sorting by name usually helps keep them in chronological order
     files.sort()
 
@@ -61,13 +61,17 @@ def process_portfolio_images(folder_path):
             # Based on your UI: Top. Değer is the first, Profit is the second
             total_val = clean_number(matches[-2])
             profit_val = clean_number(matches[-1])
+            
+            cost = total_val - profit_val
+            profit_pct = round((profit_val / cost * 100), 2) if cost > 0 else 0.0
 
             data_list.append({
                 'Time': timestamp,
                 'Total Value': total_val,
-                'Profit': profit_val
+                'Profit': profit_val,
+                'Profit Percentage': profit_pct
             })
-            print(f"Processed {file}: {timestamp} -> Total: {total_val}, Profit: {profit_val}")
+            print(f"Processed {file}: {timestamp} -> Total: {total_val}, Profit: {profit_val}, %: {profit_pct}")
 
     return pd.DataFrame(data_list)
 
@@ -77,25 +81,56 @@ def plot_data(df):
         print("No data extracted.")
         return
 
-    fig, ax1 = plt.subplots(figsize=(12, 6))
+    # --- FIGURE 1: Actual Values ---
+    fig1, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
+    fmt = plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x)))
 
-    # Plot Total Value
-    color = 'tab:blue'
-    ax1.set_xlabel('Time of Day')
-    ax1.set_ylabel('Total Portfolio Value (TL)', color=color)
-    ax1.plot(df['Time'], df['Total Value'], marker='o', color=color, label='Total Value')
-    ax1.tick_params(axis='y', labelcolor=color)
-    ax1.grid(True, alpha=0.3)
+    ax1.plot(df['Time'], df['Total Value'], 'o-', color='tab:blue', label='Total')
+    ax2.plot(df['Time'], df['Profit'], 's-', color='tab:green', label='Profit')
+    ax3.plot(df['Time'], df['Profit Percentage'], '^-', color='tab:red', label='Yield %')
 
-    # Create second axis for Profit
-    ax2 = ax1.twinx()
-    color = 'tab:green'
-    ax2.set_ylabel('Profit/Loss (TL)', color=color)
-    ax2.plot(df['Time'], df['Profit'], marker='s', linestyle='--', color=color, label='Profit')
-    ax2.tick_params(axis='y', labelcolor=color)
+    ax1.set_title('Total Fund Value (TL)', loc='left', fontweight='bold')
+    ax2.set_title('Profit Amount (TL)', loc='left', fontweight='bold')
+    ax3.set_title('Profit Percentage (%)', loc='left', fontweight='bold')
 
-    plt.title('Portfolio Performance over Time')
-    fig.tight_layout()
+    for ax in [ax1, ax2]: ax.yaxis.set_major_formatter(fmt)
+    for ax in [ax1, ax2, ax3]: ax.grid(True, alpha=0.3)
+
+    fig1.autofmt_xdate(rotation=45)
+    fig1.tight_layout()
+    plt.show()
+
+    # --- FIGURE 2: Differences ---
+    df_diff = df.copy()
+    df_diff['Total Value Diff'] = df['Total Value'].diff()
+    df_diff['Profit Diff'] = df['Profit'].diff()
+    df_diff['Profit Percentage Diff'] = df['Profit Percentage'].diff()
+
+    fig2, (ax4, ax5, ax6) = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
+
+    # Plotting diffs as bars (green for positive, red for negative)
+    colors_total = ['tab:green' if val >= 0 else 'tab:red' for val in df_diff['Total Value Diff']]
+    colors_profit = ['tab:green' if val >= 0 else 'tab:red' for val in df_diff['Profit Diff']]
+    colors_pct = ['tab:green' if val >= 0 else 'tab:red' for val in df_diff['Profit Percentage Diff']]
+
+    ax4.bar(df_diff['Time'], df_diff['Total Value Diff'], color=colors_total)
+    ax4.axhline(0, color='black', linewidth=1)
+    
+    ax5.bar(df_diff['Time'], df_diff['Profit Diff'], color=colors_profit)
+    ax5.axhline(0, color='black', linewidth=1)
+    
+    ax6.bar(df_diff['Time'], df_diff['Profit Percentage Diff'], color=colors_pct)
+    ax6.axhline(0, color='black', linewidth=1)
+
+    ax4.set_title('Total Fund Value Difference (TL)', loc='left', fontweight='bold')
+    ax5.set_title('Profit Amount Difference (TL)', loc='left', fontweight='bold')
+    ax6.set_title('Profit Percentage Difference (%)', loc='left', fontweight='bold')
+
+    for ax in [ax4, ax5]: ax.yaxis.set_major_formatter(fmt)
+    for ax in [ax4, ax5, ax6]: ax.grid(True, alpha=0.3, axis='y')
+
+    fig2.autofmt_xdate(rotation=45)
+    fig2.tight_layout()
     plt.show()
 
 

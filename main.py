@@ -120,7 +120,8 @@ def plot_from_db():
     # Derive plotting date from filename
     df['plot_date'] = pd.to_datetime(df['filename'].str.extract(r'(\d{4}-\d{2}-\d{2})')[0])
 
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
+    # --- FIGURE 1: Actual Values ---
+    fig1, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
     fmt = plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x)))
 
     ax1.plot(df['plot_date'], df['total_val'], 'o-', color='tab:blue', label='Total')
@@ -134,9 +135,43 @@ def plot_from_db():
     for ax in [ax1, ax2]: ax.yaxis.set_major_formatter(fmt)
     for ax in [ax1, ax2, ax3]: ax.grid(True, alpha=0.3)
 
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%d %b %Y'))
-    plt.xticks(rotation=45)
-    plt.tight_layout()
+    ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d %b %Y'))
+    fig1.autofmt_xdate(rotation=45)
+    fig1.tight_layout()
+    plt.show()
+
+    # --- FIGURE 2: Differences ---
+    df_diff = df.copy()
+    df_diff['total_val_diff'] = df['total_val'].diff()
+    df_diff['profit_amt_diff'] = df['profit_amt'].diff()
+    df_diff['profit_pct_diff'] = df['profit_pct'].diff()
+
+    fig2, (ax4, ax5, ax6) = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
+
+    # Plotting diffs as bars (green for positive, red for negative)
+    colors_total = ['tab:green' if val >= 0 else 'tab:red' for val in df_diff['total_val_diff']]
+    colors_profit = ['tab:green' if val >= 0 else 'tab:red' for val in df_diff['profit_amt_diff']]
+    colors_pct = ['tab:green' if val >= 0 else 'tab:red' for val in df_diff['profit_pct_diff']]
+
+    ax4.bar(df_diff['plot_date'], df_diff['total_val_diff'], color=colors_total)
+    ax4.axhline(0, color='black', linewidth=1)
+    
+    ax5.bar(df_diff['plot_date'], df_diff['profit_amt_diff'], color=colors_profit)
+    ax5.axhline(0, color='black', linewidth=1)
+    
+    ax6.bar(df_diff['plot_date'], df_diff['profit_pct_diff'], color=colors_pct)
+    ax6.axhline(0, color='black', linewidth=1)
+
+    ax4.set_title('Total Fund Value Difference (TL)', loc='left', fontweight='bold')
+    ax5.set_title('Profit Amount Difference (TL)', loc='left', fontweight='bold')
+    ax6.set_title('Profit Percentage Difference (%)', loc='left', fontweight='bold')
+
+    for ax in [ax4, ax5]: ax.yaxis.set_major_formatter(fmt)
+    for ax in [ax4, ax5, ax6]: ax.grid(True, alpha=0.3, axis='y')
+
+    ax6.xaxis.set_major_formatter(mdates.DateFormatter('%d %b %Y'))
+    fig2.autofmt_xdate(rotation=45)
+    fig2.tight_layout()
     plt.show()
 
 
